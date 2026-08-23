@@ -208,6 +208,10 @@ export class EventController {
 	// feeds it. Speech stays intact: `#vocalizeDelta` runs at ARRIVAL for every
 	// delta before the snapshot is coalesced away.
 	#pendingMessageUpdate: Extract<AgentSessionEvent, { type: "message_update" }> | undefined = undefined;
+	// Speech history: one response id per user prompt, opened at agent_start and
+	// closed at the terminal agent_end.
+	#speechResponseId: string | null = null;
+	#speechResponseSeq = 0;
 	#messageUpdateTimer: NodeJS.Timeout | undefined = undefined;
 	/** Tail of the serialized dispatch chain; see #runSerialized. */
 	#dispatchTail: Promise<void> = Promise.resolve();
@@ -875,6 +879,13 @@ export class EventController {
 		) {
 			this.#turnStartedAt = undefined;
 		}
+		// One speech response per user prompt: every intermediate tool turn stays
+		// inside it, and only the terminal agent_end closes it.
+		if (vocalizer.isRuntimeEnabled()) {
+			this.#speechResponseSeq += 1;
+			this.#speechResponseId = `speech-${Date.now()}-${this.#speechResponseSeq}`;
+			vocalizer.beginResponse(this.#speechResponseId);
+		}
 		this.#clearApprovalPreviewGates();
 		// A new turn cannot inherit a foreground tool execution. A dropped
 		// agent_end (for example after a renderer exception) otherwise leaves a
@@ -1218,8 +1229,8 @@ export class EventController {
 	 * live (the final message is spoken at turn end).
 	 */
 	#vocalizeDelta(event: Extract<AgentSessionEvent, { type: "message_update" }>): void {
-		if (!settings.get("speech.enabled")) return;
-		const mode = settings.get("speech.mode");
+		if (!vocalizer.isRuntimeEnabled()) return;
+		const mode = vocalizer.runtimeMode();
 		const delta = event.assistantMessageEvent;
 		if (delta.type === "text_delta" && (mode === "assistant" || mode === "all")) {
 			vocalizer.pushDelta(delta.delta);
@@ -1234,8 +1245,8 @@ export class EventController {
 	 * sure the live buffer's trailing partial gets flushed.
 	 */
 	#handleTurnEnd(event: Extract<AgentSessionEvent, { type: "turn_end" }>): void {
-		if (!settings.get("speech.enabled")) return;
-		if (settings.get("speech.mode") !== "yield") {
+		if (!vocalizer.isRuntimeEnabled()) return;
+		if (vocalizer.runtimeMode() !== "yield") {
 			vocalizer.flush();
 			return;
 		}
@@ -1453,12 +1464,12 @@ export class EventController {
 			this.ctx.streamingComponent.setHideThinkingBlock(this.ctx.effectiveHideThinkingBlock);
 			this.#streamingReveal.resyncVisibility();
 		}
-		if (event.message.role === "assistant" && settings.get("speech.enabled")) {
+		if (event.message.role === "assistant" && vocalizer.isRuntimeEnabled()) {
 			if (event.message.stopReason === "aborted") {
 				// Esc / Ctrl+C / interrupt: stop speaking now and drop the trailing partial.
 				vocalizer.clear();
 			} else {
-				const mode = settings.get("speech.mode");
+				const mode = vocalizer.runtimeMode();
 				// Speak the last partial sentence of a completed message; yield mode
 				// instead speaks the whole final message at turn end.
 				if (mode === "assistant" || mode === "all") vocalizer.flush();
@@ -2026,6 +2037,13 @@ export class EventController {
 	}
 
 	async #finishAgentEnd(event: Extract<AgentSessionEvent, { type: "agent_end" }>): Promise<void> {
+		// Only the terminal agent_end closes the speech response: a scheduling
+		// settle (isTerminal: false) returns before reaching here, so an async job
+		// waking the loop keeps speaking into the same response.
+		if (this.#speechResponseId) {
+			vocalizer.finalizeResponse(this.#speechResponseId);
+			this.#speechResponseId = null;
+		}
 		this.#setTerminalProgress(false);
 		this.ctx.statusLine.markActivityEnd();
 		this.#lastAgentEndAt = Date.now();

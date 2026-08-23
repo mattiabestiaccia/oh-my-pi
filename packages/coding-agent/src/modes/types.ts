@@ -121,6 +121,8 @@ export interface InteractiveModeContext {
 	deferredCommandContainer: Container;
 	editor: CustomEditor;
 	editorContainer: Container;
+	/** Holds the `/tts` player HUD, between the hook widgets and the editor. */
+	ttsContainer: Container;
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	footerContainer: Container;
@@ -450,6 +452,8 @@ export interface InteractiveModeContext {
 	handleSTTToggle(): Promise<void>;
 	/** Start or stop the Codex-backed realtime voice session. */
 	handleLiveCommand(): Promise<void>;
+	/** Drive the `/tts` streaming player; returns the line to show the user. */
+	handleTtsCommand(argument?: string): Promise<string>;
 	executeCompaction(
 		customInstructionsOrOptions?: string | CompactOptions,
 		isAuto?: boolean,

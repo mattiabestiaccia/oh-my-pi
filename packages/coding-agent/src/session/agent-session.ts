@@ -186,6 +186,7 @@ import rewindReportTemplate from "../prompts/system/rewind-report.md" with { typ
 import sessionStopBlockedPrompt from "../prompts/system/session-stop-blocked.md" with { type: "text" };
 import sideChannelNoToolsReminder from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
 import skillfulNoticePrompt from "../prompts/system/skillful-notice.md" with { type: "text" };
+import ttsModeActivePrompt from "../prompts/system/tts-mode-active.md" with { type: "text" };
 import vibeModeActivePrompt from "../prompts/system/vibe-mode-active.md" with { type: "text" };
 import videoAttachmentPrompt from "../prompts/system/video-attachment.md" with { type: "text" };
 import {
@@ -645,6 +646,8 @@ export class AgentSession {
 	/** A single model-only notebook reminder queued for the current prompt generation. */
 	#experimentalContextNotesReminder: { prompt: string; generation: number } | undefined;
 	#planModeState: PlanModeState | undefined;
+	/** Session-local: append the spoken-output format rules while `/tts` is on. */
+	#ttsModeEnabled = false;
 	#vibeModeState: VibeModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
@@ -5585,6 +5588,19 @@ export class AgentSession {
 		return this.#tools.refreshBaseSystemPrompt(commitIf);
 	}
 
+	/**
+	 * Turn the spoken-output format rules on or off for this session. Set by the
+	 * `/tts` controller; nothing is persisted.
+	 */
+	setTtsModeEnabled(enabled: boolean): void {
+		this.#ttsModeEnabled = enabled;
+	}
+
+	/** Whether the spoken-output format rules are being appended. */
+	get ttsModeEnabled(): boolean {
+		return this.#ttsModeEnabled;
+	}
+
 	/** Replaces connected MCP tools and enables them immediately. */
 	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
 		return this.#tools.refreshMCPTools(mcpTools);
@@ -6709,6 +6725,15 @@ export class AgentSession {
 			const sourceBase = this.#tools.baseSystemPrompt;
 			const basePreparation = await this.#tools.buildSystemPromptForAgentStart(prompt, isCurrent);
 			if (!isCurrent()) return cancelled;
+			// /tts (patch locale, non upstream): le regole di formato spoken-output si
+			// appendono alla base prima dei before_agent_start handlers, così le
+			// estensioni ricevono il prompt completo. Session-local: `/tts off` le
+			// toglie subito, senza toccare le settings persistite. Il punto di innesto
+			// è qui e non in un wrapper proprio perché dal 2026-09-18 upstream chiama
+			// `#tools.buildSystemPromptForAgentStart` direttamente.
+			if (this.#ttsModeEnabled) {
+				basePreparation.systemPrompt = [...basePreparation.systemPrompt, ttsModeActivePrompt];
+			}
 			const result = await this.#extensionRunner?.emitBeforeAgentStart(prompt, images, basePreparation.systemPrompt);
 			if (!isCurrent()) return cancelled;
 			// Overrides are opaque replacements, not string patches. Re-run only policy preparation

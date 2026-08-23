@@ -64,6 +64,36 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "tts",
+		icon: "voice",
+		description: "Spoken-reply player: /tts opens the chapter list",
+		inlineHint: "[on|off|status|play|pause|stop|next|previous|older|newer|speed <0.5..2>|autoplay [on|off]]",
+		allowArgs: true,
+		subcommands: [
+			{ name: "on", description: "Enable the player with HUD and autoplay, without the overlay" },
+			{ name: "off", description: "Stop audio and synthesis and hide the HUD" },
+			{ name: "status", description: "Show state, block, response, speed and voice" },
+			{ name: "play", description: "Play, or pause if already speaking" },
+			{ name: "pause", description: "Pause in place" },
+			{ name: "stop", description: "Stop, keeping the pointer on the block" },
+			{ name: "next", description: "Speak the next block" },
+			{ name: "previous", description: "Speak the previous block" },
+			{ name: "older", description: "Move to the previous response" },
+			{ name: "newer", description: "Move to the next response" },
+			{ name: "speed", description: "Set the rate", usage: "speed <0.5..2>" },
+			{
+				name: "autoplay",
+				description: "Toggle reading on by itself after each block",
+				usage: "autoplay [on|off]",
+			},
+		],
+		handleTui: async (command, runtime) => {
+			runtime.ctx.editor.setText("");
+			const message = await runtime.ctx.handleTtsCommand(command.args);
+			if (message) runtime.ctx.showWarning(message);
+		},
+	},
+	{
 		name: "pause",
 		icon: "pause",
 		description: "Freeze all agents (main, subagents, advisor) until resumed",
