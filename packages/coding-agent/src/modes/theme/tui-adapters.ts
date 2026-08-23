@@ -201,6 +201,21 @@ export function getMarkdownTheme(): MarkdownTheme {
 		: undefined;
 	const markdownTheme: MarkdownTheme = {
 		heading: (text: string) => theme.fg("mdHeading", text),
+		headingByLevel: (level: number, text: string) =>
+			theme.fg(
+				level <= 1
+					? "mdHeading"
+					: level === 2
+						? "success"
+						: level === 3
+							? "warning"
+							: level === 4
+								? "mdLink"
+								: level === 5
+									? "error"
+									: "syntaxNumber",
+				text,
+			),
 		link: (text: string) => theme.fg("mdLink", text),
 		linkUrl: (text: string) => theme.fg("mdLinkUrl", text),
 		code: (text: string) => theme.fg("mdCode", text),
