@@ -123,6 +123,7 @@ export interface InteractiveModeContext {
 	editorContainer: Container;
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
+	footerContainer: Container;
 	statusLine: StatusLineComponent;
 	syncComposerShape(): void;
 	syncEditorSpelling(): void;
