@@ -1351,6 +1351,8 @@ export function getMarkdownLinkUrls(text: string): string[] {
  */
 export interface MarkdownTheme {
 	heading: (text: string) => string;
+	/** Per-level heading color (fork): overrides `heading` when present. */
+	headingByLevel?: (level: number, text: string) => string;
 	link: (text: string) => string;
 	linkUrl: (text: string) => string;
 	/** Resolve the OSC 8 destination without changing visible text; undefined preserves the authored URL. */
@@ -2901,15 +2903,17 @@ export class Markdown implements Component {
 		switch (token.type) {
 			case "heading": {
 				const headingLevel = token.depth;
-				const headingPrefix = `${"#".repeat(headingLevel)} `;
 				const headingText = this.#renderInlineTokens(token.tokens || [], styleContext);
 				const headingPlainText = plainInlineTokens(token.tokens || []);
 				let styledHeading: string;
+				const headingColor = this.#theme.headingByLevel
+					? (t: string): string => this.#theme.headingByLevel!(headingLevel, t)
+					: this.#theme.heading;
 				if (headingLevel === 1 && TERMINAL.textSizing) {
 					const plainWidth = visibleWidth(headingPlainText);
 					if (plainWidth > 0 && 2 * plainWidth <= width) {
 						const sizedHeading = encodeTextSizedHeading(headingPlainText, 2);
-						lines.push(renderedLine(this.#theme.heading(this.#theme.bold(this.#theme.underline(sizedHeading)))));
+						lines.push(renderedLine(headingColor(this.#theme.bold(this.#theme.underline(sizedHeading)))));
 						lines.push(renderedLine("")); // reserve the heading's second visual row
 						if (nextTokenType && nextTokenType !== "space") {
 							lines.push(renderedLine("")); // Add spacing after headings (unless space token follows)
@@ -2917,13 +2921,10 @@ export class Markdown implements Component {
 						break;
 					}
 				}
-				if (headingLevel === 1) {
-					styledHeading = this.#theme.heading(this.#theme.bold(this.#theme.underline(headingText)));
-				} else if (headingLevel === 2) {
-					styledHeading = this.#theme.heading(this.#theme.bold(headingText));
-				} else {
-					styledHeading = this.#theme.heading(this.#theme.bold(headingPrefix + headingText));
-				}
+				styledHeading =
+					headingLevel === 1
+						? headingColor(this.#theme.bold(this.#theme.underline(headingText)))
+						: headingColor(this.#theme.bold(headingText));
 				lines.push(renderedLine(styledHeading));
 				if (nextTokenType && nextTokenType !== "space") {
 					lines.push(renderedLine("")); // Add spacing after headings (unless space token follows)
@@ -2976,11 +2977,9 @@ export class Markdown implements Component {
 				}
 
 				const codeIndent = padding(this.#codeBlockIndent);
-				lines.push(renderedLine(this.#theme.codeBlockBorder(`\`\`\`${token.lang || ""}`)));
 				for (const bodyLine of this.#renderCodeBodyLines(token, codeIndent)) {
 					lines.push(bodyLine);
 				}
-				lines.push(renderedLine(this.#theme.codeBlockBorder("```")));
 				if (nextTokenType && nextTokenType !== "space") {
 					lines.push(renderedLine("")); // Add spacing after code blocks (unless space token follows)
 				}
