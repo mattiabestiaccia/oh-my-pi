@@ -17,6 +17,7 @@ import type {
 	ExtensionUIDialogOptions,
 	ExtensionUISelectItem,
 	ExtensionUiComponent,
+	ExtensionUiComponentFactory,
 	ExtensionWidgetContent,
 	ExtensionWidgetOptions,
 	SendUserMessageHandler,
@@ -71,6 +72,7 @@ export class ExtensionUiController {
 	#composerShapeDisposers: Array<() => void> = [];
 	#hookWidgetsAbove = new Map<string, ExtensionUiComponent>();
 	#hookWidgetsBelow = new Map<string, ExtensionUiComponent>();
+	#customFooter: ExtensionUiComponent | undefined;
 	// Single-file dialog surface (`editorContainer` + focus) is shared by the
 	// selector / input / editor modals, so only one may be presented at a time;
 	// the rest queue. See `#presentDialog`.
@@ -139,7 +141,7 @@ export class ExtensionUiController {
 				// Theme object passed directly - not supported in current implementation
 				return Promise.resolve({ success: false, error: "Direct theme object not supported" });
 			},
-			setFooter: () => {},
+			setFooter: factory => this.setFooter(factory),
 			setHeader: () => {},
 			setEditorComponent: factory => this.ctx.setEditorComponent(factory),
 			getToolsExpanded: () => this.ctx.toolOutputExpanded,
@@ -327,6 +329,19 @@ export class ExtensionUiController {
 	 */
 	getToolUIContext(): ExtensionUIContext | undefined {
 		return this.#toolUIContext;
+	}
+	setFooter(factory: ExtensionUiComponentFactory | undefined): void {
+		this.#customFooter?.dispose?.();
+		this.#customFooter = undefined;
+		this.ctx.footerContainer.clear();
+
+		if (factory === undefined) {
+			this.ctx.footerContainer.addChild(this.ctx.statusLine);
+		} else {
+			this.#customFooter = factory(this.ctx.ui, theme);
+			this.ctx.footerContainer.addChild(this.#customFooter);
+		}
+		this.ctx.ui.requestRender();
 	}
 
 	setHookWidget(key: string, content: ExtensionWidgetContent, options?: ExtensionWidgetOptions): void {

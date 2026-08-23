@@ -715,6 +715,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	attachmentChipsContainer: Container;
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
+	/** Host del footer: contiene la status line, o il footer custom di un'estensione. */
+	footerContainer: Container;
 	statusLine: StatusLineComponent;
 
 	isInitialized = false;
@@ -1208,6 +1210,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session);
+		this.footerContainer = new Container();
+		this.footerContainer.addChild(this.statusLine);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
 		this.#codexResetFireworksController = new CodexResetFireworksController(this);
 		this.statusLine.setCodexResetFireworksHandler(event => {
@@ -1424,7 +1428,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#persistComposerStatus();
 			this.ui.requestRender();
 		});
-		this.composer.setStatusComponent(this.statusLine);
+		this.composer.setStatusComponent(this.footerContainer);
 
 		this.composer.setRuntimeChildren([
 			this.chatContainer,
