@@ -33,9 +33,17 @@ export interface TtsLocalModelSpec {
 
 /**
  * Curated Kokoro-82M voice catalog. Kokoro ships ~28 voices; we surface the
- * higher-graded ones across American/British × female/male so the picker stays
- * useful without listing every D/F-grade sample. `af_heart` (grade A) leads and
- * is the default voice. Grades are Kokoro's own `overallGrade` ratings.
+ * higher-graded ones across accent × female/male so the picker stays useful
+ * without listing every D/F-grade sample. Grades are Kokoro's own
+ * `overallGrade` ratings.
+ *
+ * English only, deliberately. The `.bin` files for the other languages ship
+ * inside kokoro-js, but the package (1.2.1, the latest release, May 2025)
+ * refuses every non-English voice with `Voice "…" not found`: the other
+ * languages need a g2p (misaki) it does not implement. Verified on
+ * 2026-08-22 by calling kokoro-js directly. Listing `if_sara` here would offer
+ * a voice that fails on every synthesis — the Italian voice is reachable only
+ * through the Voicebox engine (`tts/voicebox-engine.ts`).
  */
 export const KOKORO_VOICES: readonly TtsLocalVoiceSpec[] = [
 	{ id: "af_heart", label: "Heart (American female)" },
@@ -52,7 +60,7 @@ export const KOKORO_VOICES: readonly TtsLocalVoiceSpec[] = [
 	{ id: "bm_fable", label: "Fable (British male)" },
 ] as const;
 
-/** Default voice within the default model — Kokoro's flagship grade-A voice. */
+/** Default voice within the default model — Heart, American female. */
 export const DEFAULT_TTS_VOICE = "af_heart";
 
 /** Default local TTS model used when `tts.localModel` is unset. */

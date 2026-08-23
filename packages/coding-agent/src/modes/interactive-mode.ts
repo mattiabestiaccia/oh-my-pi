@@ -184,6 +184,7 @@ import { EventController } from "./controllers/event-controller";
 import { ExtensionUiController } from "./controllers/extension-ui-controller";
 import { InputController } from "./controllers/input-controller";
 import { LiveCommandController } from "./controllers/live-command-controller";
+import { TtsCommandController } from "./controllers/tts-command-controller";
 import { MCPCommandController } from "./controllers/mcp-command-controller";
 import { OmfgController } from "./controllers/omfg-controller";
 import { SelectorController } from "./controllers/selector-controller";
@@ -595,6 +596,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	editorContainer: Container;
 	/** Composer attachment band (chip cards) rendered directly above the prompt box. */
 	attachmentChipsContainer: Container;
+	/** Holds the `/tts` player HUD, between the hook widgets and the editor. */
+	ttsContainer: Container;
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	/** Host del footer: contiene la status line, o il footer custom di un'estensione. */
@@ -759,6 +762,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	readonly #commandController: CommandController;
 	readonly #todoCommandController: TodoCommandController;
 	readonly #liveCommandController: LiveCommandController;
+	readonly #ttsCommandController: TtsCommandController;
 	readonly #eventController: EventController;
 	get eventController(): EventController {
 		return this.#eventController;
@@ -959,6 +963,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		} catch (error) {
 			logger.warn("History storage unavailable", { error: String(error) });
 		}
+		this.ttsContainer = new Container();
 		this.hookWidgetContainerAbove = new Container();
 		this.hookWidgetContainerAbove.addChild(new Spacer(1));
 		this.hookWidgetContainerBelow = new Container();
@@ -1028,6 +1033,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#commandController = new CommandController(this);
 		this.#todoCommandController = new TodoCommandController(this);
 		this.#liveCommandController = new LiveCommandController(this);
+		this.#ttsCommandController = new TtsCommandController(this);
 		this.#selectorController = new SelectorController(this);
 		this.#focusController = new SessionFocusController(this);
 		this.#inputController = new InputController(this);
@@ -1205,6 +1211,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.statusContainer,
 			this.attachmentChipsContainer,
 			this.hookWidgetContainerAbove,
+			// The /tts HUD sits between the hook widgets and the prompt box, so it
+			// reads as part of the composer without displacing extension widgets.
+			this.ttsContainer,
 			this.editorContainer,
 			this.hookWidgetContainerBelow,
 		]);
@@ -1272,6 +1281,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		// tree before session_start hooks/reconciliation continue; renderNow keeps
 		// TUI's multiplexer, output-backlog, and image safety gates.
 		this.ui.renderNow();
+
+		// The /tts mode reads the persisted `speech.enabled` once, here: if it was
+		// true the player comes up with HUD and autoplay, no overlay. `/tts on|off`
+		// afterwards only touches this session's runtime.
+		void this.#ttsCommandController.initializeFromSettings();
 
 		// Prewarm the local tiny-title worker off the submit hot path: spawn it
 		// now, idle and unref'd, so the first submit reuses a live subprocess
@@ -4672,6 +4686,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// stopAnimation would otherwise keep an 80ms interval pinning the process.
 		stopSharedSpinnerTicker();
 		this.#liveCommandController.dispose();
+		void this.#ttsCommandController.dispose();
 		this.#cancelTodoAutoClearTimer();
 		this.#cancelObserverUiSyncTimer();
 		this.#cancelGoalContinuation();
@@ -5361,6 +5376,20 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.ui.requestRender();
 			},
 		});
+	}
+
+	/**
+	 * Drive the `/tts` streaming player. The argument is the raw text after the
+	 * command; an empty one enables the mode and opens the chapter overlay.
+	 */
+	async handleTtsCommand(argument = ""): Promise<string> {
+		const outcome = await this.#ttsCommandController.handleCommand(argument);
+		return outcome.message ?? "";
+	}
+
+	/** Bring the `/tts` player up if `speech.enabled` was persisted true. */
+	async initializeTtsMode(): Promise<void> {
+		await this.#ttsCommandController.initializeFromSettings();
 	}
 
 	/** Start or stop the Codex-backed realtime voice surface. */
