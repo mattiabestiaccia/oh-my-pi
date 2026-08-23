@@ -40,6 +40,7 @@
 import { logger } from "@oh-my-pi/pi-utils";
 import { settings } from "../config/settings";
 import { DEFAULT_TTS_VOICE } from "./models";
+import type { SpeechPlaybackQueue } from "./playback-queue";
 import { SpeakableStream } from "./speakable";
 import { BlockAccumulator, type SpeechEnhancer } from "./speech-enhancer";
 import { createStreamingPlayer, DUCK_GAIN } from "./streaming-player";
@@ -61,6 +62,31 @@ export interface VocalizerPlayer {
 }
 
 /**
+ * Session-local speech configuration installed by the `/tts` controller. When
+ * present it wins over the persisted `speech.*` settings, so a stale `yield`
+ * mode, an English voice or enhanced rewriting cannot degrade the player's
+ * language, latency or streaming.
+ */
+export interface SpeechRuntimeConfig {
+	enabled: boolean;
+	mode: "all" | "assistant" | "yield";
+	voice: string;
+	enhanced: boolean;
+}
+
+/**
+ * A synthesis session plus the block ids it feeds. `blockIds[i]` is the queue
+ * block for the chunk whose `index` is `i`: {@link Vocalizer.pushSegments}
+ * enqueues and pushes in the same order, so the mapping stays positional.
+ * `responseId` is null when no queue is attached (ask tool, non-TUI contexts).
+ */
+export interface ManagedTtsHandle {
+	stream: TtsStreamHandle;
+	responseId: string | null;
+	blockIds: string[];
+}
+
+/**
  * State of one enhanced-mode utterance. Detached from the vocalizer at
  * {@link Vocalizer.flush} so in-flight rewrites finish and the session closes
  * after the last ordered push, even while the next utterance streams.
@@ -76,14 +102,20 @@ interface EnhancedUtterance {
 	dispatchedFirst: boolean;
 	/** FIFO chain that pushes rewrite results in block order. */
 	order: Promise<void>;
-	handle: TtsStreamHandle | null;
+	handle: ManagedTtsHandle | null;
 	/** Aborted by {@link Vocalizer.clear} (current or detached); gates every deferred step. */
 	abort: AbortController;
 }
 
 export class Vocalizer {
 	/** Mechanical mode: open stream session for the current utterance. */
-	#handle: TtsStreamHandle | null = null;
+	#handle: ManagedTtsHandle | null = null;
+	/** Block queue owning playback when the `/tts` player drives the session. */
+	#queue: SpeechPlaybackQueue | null = null;
+	/** Session-local override of the persisted `speech.*` settings. */
+	#runtime: SpeechRuntimeConfig | null = null;
+	/** Response the current segments belong to; one per user prompt. */
+	#responseId: string | null = null;
 	/** Mechanical mode: markdown → segment transform for the current utterance. */
 	#speakable: SpeakableStream | null = null;
 	/** Enhanced mode: the utterance currently receiving deltas. */
@@ -106,14 +138,77 @@ export class Vocalizer {
 	#rewriteSlots = MAX_REWRITES_IN_FLIGHT;
 	#slotWaiters: Array<() => void> = [];
 	#createPlayer: () => VocalizerPlayer;
+	#openStream: (modelKey: string, options: { voice: string; signal: AbortSignal }) => TtsStreamHandle;
 
-	constructor(createPlayer: () => VocalizerPlayer = createStreamingPlayer) {
+	constructor(
+		createPlayer: () => VocalizerPlayer = createStreamingPlayer,
+		openStream: (modelKey: string, options: { voice: string; signal: AbortSignal }) => TtsStreamHandle = (
+			modelKey,
+			options,
+		) => ttsClient.synthesizeStream(modelKey, options),
+	) {
 		this.#createPlayer = createPlayer;
+		this.#openStream = openStream;
 	}
 
 	/** Wire (or drop) the per-session enhanced-rewrite service. */
 	setEnhancer(enhancer: SpeechEnhancer | null): void {
 		this.#enhancer = enhancer;
+	}
+
+	/**
+	 * Hand playback to the `/tts` block queue, or take it back. While a queue is
+	 * attached the synthesized chunks land in it instead of a
+	 * {@link StreamingAudioPlayer}: the queue owns the WAV cache, the transport
+	 * and the HUD. Detaching restores the plain streaming behaviour used by the
+	 * ask tool, `omp say` and non-TUI contexts.
+	 */
+	attachPlaybackQueue(queue: SpeechPlaybackQueue | null): void {
+		this.#queue = queue;
+	}
+
+	/**
+	 * Install (or drop) the session-local speech configuration. With a config
+	 * present every getter reads it; without one they fall back to the
+	 * persisted `speech.*` settings.
+	 */
+	configureRuntime(config: SpeechRuntimeConfig | undefined): void {
+		this.#runtime = config ?? null;
+	}
+
+	/** Whether vocalization is on, runtime override first. */
+	isRuntimeEnabled(): boolean {
+		return this.#runtime ? this.#runtime.enabled : settings.get("speech.enabled");
+	}
+
+	/** What to speak: all, assistant messages only, or the final message. */
+	runtimeMode(): "all" | "assistant" | "yield" {
+		return this.#runtime ? this.#runtime.mode : settings.get("speech.mode");
+	}
+
+	/** Kokoro voice for this session. */
+	runtimeVoice(): string {
+		return this.#runtime ? this.#runtime.voice : settings.get("speech.voice") || DEFAULT_TTS_VOICE;
+	}
+
+	/** Whether the tiny-model rewrite runs before synthesis. */
+	runtimeEnhanced(): boolean {
+		return this.#runtime ? this.#runtime.enhanced : settings.get("speech.enhanced");
+	}
+
+	/**
+	 * Open the speech history entry for one user prompt. Every intermediate
+	 * tool turn stays inside it until {@link finalizeResponse}.
+	 */
+	beginResponse(id: string): void {
+		this.#responseId = id;
+		this.#queue?.beginResponse(id);
+	}
+
+	/** Close the response opened by {@link beginResponse} (terminal agent_end). */
+	finalizeResponse(id: string): void {
+		this.#queue?.finalizeResponse(id);
+		if (this.#responseId === id) this.#responseId = null;
 	}
 
 	/**
@@ -140,9 +235,9 @@ export class Vocalizer {
 	 * pipeline (enhanced vs mechanical) is latched per utterance.
 	 */
 	pushDelta(text: string): void {
-		if (this.#suspensions > 0 || !settings.get("speech.enabled")) return;
+		if (this.#suspensions > 0 || !this.isRuntimeEnabled()) return;
 		if (!text) return;
-		if (this.#enhanced || (!this.#speakable && this.#enhancer && settings.get("speech.enhanced"))) {
+		if (this.#enhanced || (!this.#speakable && this.#enhancer && this.runtimeEnhanced())) {
 			this.#pushEnhanced(text);
 			return;
 		}
@@ -174,7 +269,7 @@ export class Vocalizer {
 			this.#dispatchPending(utterance);
 			utterance.order = utterance.order.then(() => {
 				if (utterance.abort.signal.aborted) return;
-				utterance.handle?.end();
+				utterance.handle?.stream.end();
 				// A rewrite-only utterance (nothing speakable, no session) has no
 				// playback teardown to reap its abort controller — do it here.
 				if (!utterance.handle) this.#liveAborts.delete(utterance.abort);
@@ -184,7 +279,7 @@ export class Vocalizer {
 		const speakable = this.#speakable;
 		this.#speakable = null;
 		if (speakable) this.#pushSegments(speakable.flush());
-		this.#handle?.end();
+		this.#handle?.stream.end();
 		this.#handle = null;
 	}
 
@@ -210,6 +305,9 @@ export class Vocalizer {
 		this.#liveAborts.clear();
 		for (const player of this.#livePlayers) player.stop();
 		this.#livePlayers.clear();
+		// The queue drops its process and pending audio but keeps history and
+		// the cached WAVs navigable: an interrupt must not erase what was said.
+		this.#queue?.clear();
 	}
 
 	/**
@@ -218,7 +316,9 @@ export class Vocalizer {
 	 * Callers (Esc handler) treat this as the "silence me" signal.
 	 */
 	isSpeaking(): boolean {
-		return this.#livePlayers.size > 0 || this.#liveAborts.size > 0 || this.#handle !== null;
+		if (this.#livePlayers.size > 0 || this.#liveAborts.size > 0 || this.#handle !== null) return true;
+		const state = this.#queue?.snapshot().state;
+		return state === "playing" || state === "waiting";
 	}
 
 	/** Lower the volume while the user is speaking (push-to-talk), so speech doesn't drown them out. */
@@ -301,8 +401,9 @@ export class Vocalizer {
 			const spoken = rewritten ?? block;
 			const segments = utterance.speakable.push(spoken.endsWith("\n") ? spoken : `${spoken}\n`);
 			if (segments.length === 0) return;
-			if (!utterance.handle) utterance.handle = this.#openSession(utterance.abort);
-			for (const segment of segments) utterance.handle.push(segment);
+			if (this.#enqueueOnly(segments)) return;
+			utterance.handle ??= this.#openSession(utterance.abort);
+			this.#feed(utterance.handle, segments);
 		});
 	}
 
@@ -338,35 +439,117 @@ export class Vocalizer {
 	/** Mechanical mode: feed ready segments, opening the session lazily. */
 	#pushSegments(segments: string[]): void {
 		if (segments.length === 0) return;
+		if (this.#enqueueOnly(segments)) return;
 		if (!this.#handle) {
 			const abort = new AbortController();
 			this.#liveAborts.add(abort);
 			this.#handle = this.#openSession(abort);
 		}
-		for (const segment of segments) this.#handle.push(segment);
+		this.#feed(this.#handle, segments);
+	}
+
+	/**
+	 * When the queue owns synthesis (the Voicebox engine), the vocalizer's job
+	 * ends at the text: it enqueues each segment and the queue synthesizes them
+	 * in order. No stream is opened, so there is no chunk index to map onto
+	 * blocks — the whole positional mapping below simply does not apply.
+	 * Returns true when the segments were handled here.
+	 */
+	#enqueueOnly(segments: string[]): boolean {
+		const queue = this.#queue;
+		if (!queue?.ownsSynthesis) return false;
+		const responseId = this.#responseId;
+		if (!responseId) {
+			logger.debug("vocalizer: segments dropped, no open response");
+			return true;
+		}
+		for (const segment of segments) queue.enqueue(responseId, segment);
+		return true;
+	}
+
+	/**
+	 * Push segments into a session, registering one queue block per segment
+	 * first. Enqueue and push happen in the same order in the same loop, which
+	 * is what makes `blockIds[chunk.index]` the right block later on.
+	 */
+	#feed(handle: ManagedTtsHandle, segments: string[]): void {
+		const queue = this.#queue;
+		for (const segment of segments) {
+			if (queue && handle.responseId !== null) {
+				handle.blockIds.push(queue.enqueue(handle.responseId, segment));
+			}
+			handle.stream.push(segment);
+		}
 	}
 
 	/**
 	 * Open a streaming-synthesis session and chain its playback after any
 	 * prior utterance's, so sequential utterances never overlap.
 	 */
-	#openSession(abort: AbortController): TtsStreamHandle {
+	#openSession(abort: AbortController): ManagedTtsHandle {
 		const modelKey = settings.get("tts.localModel");
-		const voice = settings.get("speech.voice") || DEFAULT_TTS_VOICE;
-		const handle = ttsClient.synthesizeStream(modelKey, { voice, signal: abort.signal });
+		const handle: ManagedTtsHandle = {
+			stream: this.#openStream(modelKey, { voice: this.runtimeVoice(), signal: abort.signal }),
+			responseId: this.#queue ? this.#responseId : null,
+			blockIds: [],
+		};
+		this.#liveAborts.add(abort);
+		// With a queue attached the audio goes to disk and afplay, so no
+		// StreamingAudioPlayer is created at all — and duck/unduck, which act on
+		// the player's gain, do not apply to that path.
+		if (handle.responseId !== null) {
+			this.#chain = this.#chain.then(async () => {
+				try {
+					await this.#drainIntoQueue(handle, abort.signal);
+				} finally {
+					this.#liveAborts.delete(abort);
+				}
+			});
+			return handle;
+		}
 		const player = this.#createPlayer();
 		player.setGain(this.#ducked ? DUCK_GAIN : 1);
-		this.#liveAborts.add(abort);
 		this.#livePlayers.add(player);
 		this.#chain = this.#chain.then(async () => {
 			try {
-				await this.#play(handle, player, abort.signal);
+				await this.#play(handle.stream, player, abort.signal);
 			} finally {
 				this.#liveAborts.delete(abort);
 				this.#livePlayers.delete(player);
 			}
 		});
 		return handle;
+	}
+
+	/**
+	 * Queue path: hand each synthesized chunk to the block it belongs to. A
+	 * missing or repeated index is an error of that one block — it is logged
+	 * and skipped, never allowed to shift the mapping of the following chunks.
+	 */
+	async #drainIntoQueue(handle: ManagedTtsHandle, signal: AbortSignal): Promise<void> {
+		const queue = this.#queue;
+		if (!queue) return;
+		const seen = new Set<number>();
+		try {
+			for await (const chunk of handle.stream.chunks) {
+				if (signal.aborted) break;
+				const blockId = handle.blockIds[chunk.index];
+				if (blockId === undefined) {
+					logger.debug("vocalizer: chunk index has no block", { index: chunk.index });
+					continue;
+				}
+				if (seen.has(chunk.index)) {
+					logger.debug("vocalizer: duplicate chunk index", { index: chunk.index, blockId });
+					continue;
+				}
+				seen.add(chunk.index);
+				await queue.acceptAudio(blockId, chunk.pcm, chunk.sampleRate);
+			}
+		} catch (error) {
+			logger.debug("vocalizer: queue stream failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 	}
 
 	/**
