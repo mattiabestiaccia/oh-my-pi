@@ -47,7 +47,7 @@ function scaleHexTowardBlack(hex: string, factor: number): string {
 }
 
 /** Inline-code highlight brightness in reasoning relative to the answer. */
-const REASONING_CODE_FACTOR = 0.4;
+const REASONING_CODE_FACTOR = 0.7;
 
 let cachedReasoningMarkdownTheme: MarkdownTheme | undefined;
 let cachedReasoningMarkdownThemeRef: typeof theme | undefined;
@@ -1167,10 +1167,10 @@ export class AssistantMessageComponent extends Container {
 							(c.type === "thinking" && resolveThinkingDisplay(c, this.#proseOnlyThinking).visible),
 					);
 
-				// Thinking traces in very dark slate gray, italic; inline code keeps
-				// the same hue as the answer at 40% brightness.
+				// Thinking traces in subdued slate gray, italic; inline code keeps
+				// the same hue as the answer at 70% brightness.
 				const md = new Markdown(thinkingText, 1, 0, getReasoningMarkdownTheme(), {
-					color: (text: string) => chalk.hex("#363a42")(text),
+					color: (text: string) => chalk.hex("#757d91")(text),
 					italic: true,
 				});
 				md.transientRenderCache = this.#lastUpdateTransient;
