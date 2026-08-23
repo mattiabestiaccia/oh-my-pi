@@ -37,6 +37,39 @@ const MAX_TRANSCRIPT_ERROR_ROWS = 8;
 const EMPTY_STABLE_RENDER: readonly string[] = [];
 const EMPTY_LINK_TARGETS: ReadonlyMap<string, string> = new Map();
 
+/** Scale an RGB hex color toward black: 1 keeps the color, 0 makes it black. */
+function scaleHexTowardBlack(hex: string, factor: number): string {
+	const value = Number.parseInt(hex.startsWith("#") ? hex.slice(1) : hex, 16);
+	const red = Math.round(((value >> 16) & 0xff) * factor)
+		.toString(16)
+		.padStart(2, "0");
+	const green = Math.round(((value >> 8) & 0xff) * factor)
+		.toString(16)
+		.padStart(2, "0");
+	const blue = Math.round((value & 0xff) * factor)
+		.toString(16)
+		.padStart(2, "0");
+	return `#${red}${green}${blue}`;
+}
+
+/** Inline-code highlight brightness in reasoning relative to the answer. */
+const REASONING_CODE_FACTOR = 0.4;
+
+let cachedReasoningMarkdownTheme: MarkdownTheme | undefined;
+let cachedReasoningMarkdownThemeRef: typeof theme | undefined;
+
+function getReasoningMarkdownTheme(): MarkdownTheme {
+	if (cachedReasoningMarkdownTheme !== undefined && cachedReasoningMarkdownThemeRef === theme) {
+		return cachedReasoningMarkdownTheme;
+	}
+	const base = getMarkdownTheme();
+	const dimmedCode = (text: string) =>
+		chalk.hex(scaleHexTowardBlack(theme.getColorHex("mdCode"), REASONING_CODE_FACTOR))(text);
+	cachedReasoningMarkdownTheme = { ...base, code: dimmedCode };
+	cachedReasoningMarkdownThemeRef = theme;
+	return cachedReasoningMarkdownTheme;
+}
+
 type ThinkingContentBlock = Extract<AssistantMessage["content"][number], { type: "thinking" }>;
 type DisplayThinkingContentBlock = ThinkingContentBlock & { rawThinking?: string };
 type StableThinkingPart = { kind: "thinking"; text: string } | { kind: "spacer" };
@@ -1082,9 +1115,10 @@ export class AssistantMessageComponent extends Container {
 							(c.type === "thinking" && resolveThinkingDisplay(c, this.proseOnlyThinking).visible),
 					);
 
-				// Thinking traces in thinkingText color, italic
-				const md = new Markdown(thinkingText, 1, 0, getMarkdownTheme(), {
-					color: (text: string) => theme.fg("thinkingText", text),
+				// Thinking traces in very dark slate gray, italic; inline code keeps
+				// the same hue as the answer at 40% brightness.
+				const md = new Markdown(thinkingText, 1, 0, getReasoningMarkdownTheme(), {
+					color: (text: string) => chalk.hex("#363a42")(text),
 					italic: true,
 				});
 				md.transientRenderCache = this.#lastUpdateTransient;
