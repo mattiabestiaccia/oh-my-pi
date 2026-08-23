@@ -179,6 +179,7 @@ import planModeToolDecisionReminderPrompt from "../prompts/system/plan-mode-tool
 import rewindReportTemplate from "../prompts/system/rewind-report.md" with { type: "text" };
 import sideChannelNoToolsReminder from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
 import skillfulNoticePrompt from "../prompts/system/skillful-notice.md" with { type: "text" };
+import ttsModeActivePrompt from "../prompts/system/tts-mode-active.md" with { type: "text" };
 import vibeModeActivePrompt from "../prompts/system/vibe-mode-active.md" with { type: "text" };
 import videoAttachmentPrompt from "../prompts/system/video-attachment.md" with { type: "text" };
 import {
@@ -619,6 +620,8 @@ export class AgentSession {
 	/** A single model-only notebook reminder queued for the current prompt generation. */
 	#experimentalContextNotesReminder: { prompt: string; generation: number } | undefined;
 	#planModeState: PlanModeState | undefined;
+	/** Session-local: append the spoken-output format rules while `/tts` is on. */
+	#ttsModeEnabled = false;
 	#vibeModeState: VibeModeState | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
@@ -5449,8 +5452,25 @@ export class AgentSession {
 		return this.#tools.refreshBaseSystemPrompt();
 	}
 
-	#buildSystemPromptForAgentStart(promptText: string): Promise<string[]> {
-		return this.#tools.buildSystemPromptForAgentStart(promptText);
+	async #buildSystemPromptForAgentStart(promptText: string): Promise<string[]> {
+		const base = await this.#tools.buildSystemPromptForAgentStart(promptText);
+		// Appended here, before the before_agent_start handlers run, so extensions
+		// receive the complete prompt. Session-local: /tts off drops it at once,
+		// without touching the persisted settings.
+		return this.#ttsModeEnabled ? [...base, ttsModeActivePrompt] : base;
+	}
+
+	/**
+	 * Turn the spoken-output format rules on or off for this session. Set by the
+	 * `/tts` controller; nothing is persisted.
+	 */
+	setTtsModeEnabled(enabled: boolean): void {
+		this.#ttsModeEnabled = enabled;
+	}
+
+	/** Whether the spoken-output format rules are being appended. */
+	get ttsModeEnabled(): boolean {
+		return this.#ttsModeEnabled;
 	}
 
 	/** Replaces connected MCP tools and enables them immediately. */

@@ -56,6 +56,14 @@ interface AppKeybindings {
 	"app.history.search": true;
 	"app.stt.toggle": true;
 	"app.live.toggle": true;
+	"app.tts.playPause": true;
+	"app.tts.stop": true;
+	"app.tts.previous": true;
+	"app.tts.next": true;
+	"app.tts.speedDown": true;
+	"app.tts.speedUp": true;
+	"app.tts.overlay": true;
+	"app.tts.autoplay": true;
 }
 
 export type AppKeybinding = keyof AppKeybindings;
@@ -237,6 +245,41 @@ export const KEYBINDINGS = {
 	"app.live.toggle": {
 		defaultKeys: "ctrl+l",
 		description: "Start or stop live voice mode (/live)",
+	},
+	// The /tts player's shortcuts. Alt-based so they never collide with the
+	// editor's own ctrl bindings, and installed only while the mode is active.
+	"app.tts.playPause": {
+		defaultKeys: "alt+t",
+		description: "Play or pause the spoken reply (/tts)",
+	},
+	"app.tts.stop": {
+		defaultKeys: "alt+s",
+		description: "Stop the spoken reply, keeping the pointer (/tts)",
+	},
+	"app.tts.previous": {
+		defaultKeys: "alt+,",
+		description: "Speak the previous block (/tts)",
+	},
+	"app.tts.next": {
+		defaultKeys: "alt+.",
+		description: "Speak the next block (/tts)",
+	},
+	"app.tts.speedDown": {
+		defaultKeys: "alt+-",
+		description: "Slow the spoken reply by 0.1× (/tts)",
+	},
+	"app.tts.speedUp": {
+		defaultKeys: "alt+=",
+		description: "Speed the spoken reply by 0.1× (/tts)",
+	},
+	"app.tts.overlay": {
+		defaultKeys: "alt+h",
+		description: "Open the spoken-reply chapter list (/tts)",
+	},
+	"app.tts.autoplay": {
+		// Not plain alt+a: that is already `app.agents.hub`.
+		defaultKeys: "alt+shift+a",
+		description: "Toggle reading on by itself after each block (/tts)",
 	},
 } as const satisfies KeybindingDefinitions;
 
