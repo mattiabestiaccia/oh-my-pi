@@ -18,6 +18,7 @@ import {
 	getModelMatchPreferences,
 	resolveModelFromString,
 } from "../config/model-resolver";
+import { resolveLocalUrlToFile } from "../internal-urls";
 import inspectImageDescription from "../prompts/tools/inspect-image.md" with { type: "text" };
 import inspectImageSystemPromptTemplate from "../prompts/tools/inspect-image-system.md" with { type: "text" };
 import { concreteThinkingLevel, resolveThinkingLevelForModel, toReasoningEffort } from "../thinking";
@@ -30,10 +31,11 @@ import {
 	webpExclusionForModel,
 } from "../utils/image-loading";
 import type { ToolSession } from "./index";
+import { normalizeLocalScheme } from "./path-utils";
 import { ToolError } from "./tool-errors";
 
 const inspectImageSchema = type({
-	path: type("string").describe("image file path, Image #N label, or attachment://N URI"),
+	path: type("string").describe("image file path, local:// session image URI, Image #N label, or attachment://N URI"),
 	question: type("string").describe("question about image"),
 	"+": "reject",
 });
@@ -211,13 +213,35 @@ export class InspectImageTool implements AgentTool<typeof inspectImageSchema, In
 					excludeWebP,
 				});
 			} else {
-				imageInput = await loadImageInput({
-					path: params.path,
-					cwd: this.session.cwd,
-					autoResize,
-					maxBytes: MAX_IMAGE_INPUT_BYTES,
-					excludeWebP,
-				});
+				const normalizedPath = normalizeLocalScheme(params.path);
+				if (normalizedPath.startsWith("local://")) {
+					const localFile = await resolveLocalUrlToFile(normalizedPath, {
+						cwd: this.session.cwd,
+						settings: this.session.settings,
+						signal,
+						localProtocolOptions: this.session.localProtocolOptions,
+						skills: this.session.skills,
+					});
+					if (!localFile) {
+						throw new ToolError(`Unable to resolve ${normalizedPath}: no active session for local:// URLs.`);
+					}
+					imageInput = await loadImageInput({
+						path: normalizedPath,
+						resolvedPath: localFile.path,
+						cwd: this.session.cwd,
+						autoResize,
+						maxBytes: MAX_IMAGE_INPUT_BYTES,
+						excludeWebP,
+					});
+				} else {
+					imageInput = await loadImageInput({
+						path: params.path,
+						cwd: this.session.cwd,
+						autoResize,
+						maxBytes: MAX_IMAGE_INPUT_BYTES,
+						excludeWebP,
+					});
+				}
 			}
 		} catch (error) {
 			if (error instanceof ImageInputTooLargeError) {
