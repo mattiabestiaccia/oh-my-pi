@@ -212,7 +212,9 @@ export class VoiceboxEngine {
 			response = await this.#fetch(`${this.#baseUrl}${path}`, {
 				method: body === undefined ? "GET" : "POST",
 				signal: merged,
-				...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+				...(body === undefined
+					? {}
+					: { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
 			});
 		} catch (error) {
 			if (signal?.aborted) throw new Error("sintesi annullata");
