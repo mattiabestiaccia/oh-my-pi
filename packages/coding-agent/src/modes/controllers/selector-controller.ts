@@ -37,6 +37,7 @@ import {
 	getSymbolTheme,
 	previewTheme,
 	setColorBlindMode,
+	setMarkdownCodeBlockFence,
 	setMarkdownMermaidRendering,
 	setSymbolPreset,
 	setTheme,
@@ -743,6 +744,12 @@ export class SelectorController {
 				break;
 			case "tui.resizeScrollback":
 				this.ctx.ui.setResizeScrollback(value as ResizeScrollbackMode);
+				break;
+
+			case "tui.codeBlockFence":
+				setMarkdownCodeBlockFence(value as boolean);
+				this.ctx.rebuildChatFromMessages();
+				this.ctx.ui.resetDisplay();
 				break;
 
 			case "tui.renderMermaid":
