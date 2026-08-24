@@ -1350,13 +1350,19 @@ export interface HighlightStreamSession {
  */
 export interface MarkdownTheme {
 	heading: (text: string) => string;
-	/** Per-level heading color (fork): overrides `heading` when present. */
+	/** Per-level heading color; overrides `heading` when present. */
 	headingByLevel?: (level: number, text: string) => string;
 	link: (text: string) => string;
 	linkUrl: (text: string) => string;
 	code: (text: string) => string;
 	codeBlock: (text: string) => string;
 	codeBlockBorder: (text: string) => string;
+	/**
+	 * Whether to draw the ``` fence lines around code blocks. Defaults to true;
+	 * set false to render the highlighted body alone (the language is still
+	 * available to the highlighter).
+	 */
+	showCodeBlockFence?: boolean;
 	quote: (text: string) => string;
 	quoteBorder: (text: string) => string;
 	hr: (text: string) => string;
@@ -2862,7 +2868,6 @@ export class Markdown implements Component {
 				const headingLevel = token.depth;
 				const headingText = this.#renderInlineTokens(token.tokens || [], styleContext);
 				const headingPlainText = plainInlineTokens(token.tokens || []);
-				let styledHeading: string;
 				const headingColor = this.#theme.headingByLevel
 					? (t: string): string => this.#theme.headingByLevel!(headingLevel, t)
 					: this.#theme.heading;
@@ -2878,7 +2883,7 @@ export class Markdown implements Component {
 						break;
 					}
 				}
-				styledHeading =
+				const styledHeading =
 					headingLevel === 1
 						? headingColor(this.#theme.bold(this.#theme.underline(headingText)))
 						: headingColor(this.#theme.bold(headingText));
@@ -2934,8 +2939,15 @@ export class Markdown implements Component {
 				}
 
 				const codeIndent = padding(this.#codeBlockIndent);
+				const showFence = this.#theme.showCodeBlockFence !== false;
+				if (showFence) {
+					lines.push(renderedLine(this.#theme.codeBlockBorder(`\`\`\`${token.lang || ""}`)));
+				}
 				for (const bodyLine of this.#renderCodeBodyLines(token, codeIndent)) {
 					lines.push(bodyLine);
+				}
+				if (showFence) {
+					lines.push(renderedLine(this.#theme.codeBlockBorder("```")));
 				}
 				if (nextTokenType && nextTokenType !== "space") {
 					lines.push(renderedLine("")); // Add spacing after code blocks (unless space token follows)
