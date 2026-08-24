@@ -31,6 +31,12 @@ const themeColorsSchema = type({
 	toolTitle: "string | number",
 	toolOutput: "string | number",
 	mdHeading: "string | number",
+	"mdHeading1?": "string | number",
+	"mdHeading2?": "string | number",
+	"mdHeading3?": "string | number",
+	"mdHeading4?": "string | number",
+	"mdHeading5?": "string | number",
+	"mdHeading6?": "string | number",
 	mdLink: "string | number",
 	mdLinkUrl: "string | number",
 	mdCode: "string | number",
@@ -136,6 +142,12 @@ export type ThemeColor =
 	| "toolTitle"
 	| "toolOutput"
 	| "mdHeading"
+	| "mdHeading1"
+	| "mdHeading2"
+	| "mdHeading3"
+	| "mdHeading4"
+	| "mdHeading5"
+	| "mdHeading6"
 	| "mdLink"
 	| "mdLinkUrl"
 	| "mdCode"
@@ -199,6 +211,12 @@ const THEME_COLOR_RECORD = {
 	toolTitle: true,
 	toolOutput: true,
 	mdHeading: true,
+	mdHeading1: true,
+	mdHeading2: true,
+	mdHeading3: true,
+	mdHeading4: true,
+	mdHeading5: true,
+	mdHeading6: true,
 	mdLink: true,
 	mdLinkUrl: true,
 	mdCode: true,
