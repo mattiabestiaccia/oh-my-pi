@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Api, AssistantMessage, completeSimple, Context, Model, SimpleStreamOptions } from "@oh-my-pi/pi-ai";
+import type { Api, AssistantMessage, Context, completeSimple, Model, SimpleStreamOptions } from "@oh-my-pi/pi-ai";
 import { TempDir } from "@oh-my-pi/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
-import { InspectImageTool } from "./inspect-image";
 import type { ToolSession } from "./index";
+import { InspectImageTool } from "./inspect-image";
 
 // 1×1 PNG (the fixture used by the upstream inspect_image tests); a valid PNG so
 // the content-sniffing loader reports image/png.
@@ -124,7 +124,12 @@ describe("inspect_image local:// session images", () => {
 			const userContent = request!.ctx.messages[0].content;
 			expect(userContent[0]).toMatchObject({ type: "image", mimeType: "image/png" });
 			const imageBlock = userContent[0];
-			if (!imageBlock || typeof imageBlock !== "object" || !("data" in imageBlock) || typeof imageBlock.data !== "string") {
+			if (
+				!imageBlock ||
+				typeof imageBlock !== "object" ||
+				!("data" in imageBlock) ||
+				typeof imageBlock.data !== "string"
+			) {
 				throw new Error("expected an image block with base64 data");
 			}
 			expect(imageBlock.data.length).toBeGreaterThan(0);
@@ -149,9 +154,9 @@ describe("inspect_image local:// session images", () => {
 			const { stub } = makeCompleteImageStub();
 			const tool = new InspectImageTool(harness.session, stub);
 
-			await expect(
-				tool.execute("call-1", { path: "local://escape.png", question: "Describe." }),
-			).rejects.toThrow(/escapes local root/);
+			await expect(tool.execute("call-1", { path: "local://escape.png", question: "Describe." })).rejects.toThrow(
+				/escapes local root/,
+			);
 		} finally {
 			await fs.rm(harness.artifactsDir, { recursive: true, force: true });
 		}
