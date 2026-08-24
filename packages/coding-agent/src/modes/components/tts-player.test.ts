@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { visibleWidth } from "@oh-my-pi/pi-tui";
 import { KeybindingsManager } from "../../config/keybindings";
 import { type PlaybackProcess, SpeechPlaybackQueue, type SpeechPlaybackSnapshot } from "../../tts/playback-queue";
 import { initTheme, theme } from "../theme/theme";
@@ -346,7 +346,7 @@ describe("TtsChaptersOverlay", () => {
 	test("the body never exceeds what the terminal can show", async () => {
 		const { queue } = await makeQueue();
 		queue.beginResponse("r1");
-		for (let i = 0; i < 40 ; i += 1) queue.enqueue("r1", `Un blocco piuttosto lungo, il numero ${i}, che va a capo.`);
+		for (let i = 0; i < 40; i += 1) queue.enqueue("r1", `Un blocco piuttosto lungo, il numero ${i}, che va a capo.`);
 		await queue.acceptAudio("r1:0", pcm(), 24_000);
 		for (const rows of [12, 20, 40]) {
 			const { overlay } = makeOverlay(queue, { rows });
@@ -381,7 +381,7 @@ describe("TtsChaptersOverlay", () => {
 
 		// And arrows scroll back up one row at a time.
 		for (let i = 0; i < 40; i += 1) overlay.handleInput("\x1b[A");
-        expect(plain(overlay.render(70).join("\n"))).toContain("La risposta viene divisa");
+		expect(plain(overlay.render(70).join("\n"))).toContain("La risposta viene divisa");
 		overlay.dispose();
 	});
 
