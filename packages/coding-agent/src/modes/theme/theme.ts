@@ -27,6 +27,7 @@ export {
 	getSettingsListTheme,
 	getSymbolTheme,
 	highlightCode,
+	setMarkdownCodeBlockFence,
 	setMarkdownMermaidRendering,
 } from "./tui-adapters";
 

@@ -1200,6 +1200,12 @@ export interface MarkdownTheme {
 	code: (text: string) => string;
 	codeBlock: (text: string) => string;
 	codeBlockBorder: (text: string) => string;
+	/**
+	 * Whether to draw the ``` fence lines around code blocks. Defaults to true;
+	 * set false to render the highlighted body alone (the language is still
+	 * available to the highlighter).
+	 */
+	showCodeBlockFence?: boolean;
 	quote: (text: string) => string;
 	quoteBorder: (text: string) => string;
 	hr: (text: string) => string;
@@ -2563,11 +2569,16 @@ export class Markdown implements Component {
 				}
 
 				const codeIndent = padding(this.#codeBlockIndent);
-				lines.push(renderedLine(this.#theme.codeBlockBorder(`\`\`\`${token.lang || ""}`)));
+				const showFence = this.#theme.showCodeBlockFence !== false;
+				if (showFence) {
+					lines.push(renderedLine(this.#theme.codeBlockBorder(`\`\`\`${token.lang || ""}`)));
+				}
 				for (const bodyLine of this.#renderCodeBodyLines(token, codeIndent)) {
 					lines.push(bodyLine);
 				}
-				lines.push(renderedLine(this.#theme.codeBlockBorder("```")));
+				if (showFence) {
+					lines.push(renderedLine(this.#theme.codeBlockBorder("```")));
+				}
 				if (nextTokenType && nextTokenType !== "space") {
 					lines.push(renderedLine("")); // Add spacing after code blocks (unless space token follows)
 				}

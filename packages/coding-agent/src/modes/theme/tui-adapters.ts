@@ -138,10 +138,17 @@ export function getSymbolTheme(): SymbolTheme {
 let cachedMarkdownTheme: MarkdownTheme | undefined;
 let cachedMarkdownThemeRef: Theme | undefined;
 let markdownMermaidRendering = true;
+let markdownCodeBlockFence = true;
 
 export function setMarkdownMermaidRendering(enabled: boolean): void {
 	if (markdownMermaidRendering === enabled) return;
 	markdownMermaidRendering = enabled;
+	cachedMarkdownTheme = undefined;
+}
+
+export function setMarkdownCodeBlockFence(enabled: boolean): void {
+	if (markdownCodeBlockFence === enabled) return;
+	markdownCodeBlockFence = enabled;
 	cachedMarkdownTheme = undefined;
 }
 
@@ -171,6 +178,7 @@ export function getMarkdownTheme(): MarkdownTheme {
 		link: (text: string) => theme.fg("mdLink", text),
 		linkUrl: (text: string) => theme.fg("mdLinkUrl", text),
 		code: (text: string) => theme.fg("mdCode", text),
+		showCodeBlockFence: markdownCodeBlockFence,
 		codeBlock: (text: string) => theme.fg("mdCodeBlock", text),
 		codeBlockBorder: (text: string) => theme.fg("mdCodeBlockBorder", text),
 		quote: (text: string) => theme.fg("mdQuote", text),
