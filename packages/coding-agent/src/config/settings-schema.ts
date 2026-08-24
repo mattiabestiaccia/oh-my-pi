@@ -1194,6 +1194,17 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"tui.codeBlockFence": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "appearance",
+			group: "Display",
+			label: "Show Code Block Fences",
+			description: "Draw the ``` fence lines above and below fenced code blocks",
+		},
+	},
+
 	"tui.renderMermaid": {
 		type: "boolean",
 		default: true,
