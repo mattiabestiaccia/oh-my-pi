@@ -1195,6 +1195,8 @@ export interface HighlightStreamSession {
  */
 export interface MarkdownTheme {
 	heading: (text: string) => string;
+	/** Per-level heading color; overrides `heading` when present. */
+	headingByLevel?: (level: number, text: string) => string;
 	link: (text: string) => string;
 	linkUrl: (text: string) => string;
 	code: (text: string) => string;
@@ -2492,11 +2494,14 @@ export class Markdown implements Component {
 				const headingText = this.#renderInlineTokens(token.tokens || [], styleContext);
 				const headingPlainText = plainInlineTokens(token.tokens || []);
 				let styledHeading: string;
+				const headingColor = this.#theme.headingByLevel
+					? (t: string): string => this.#theme.headingByLevel!(headingLevel, t)
+					: this.#theme.heading;
 				if (headingLevel === 1 && TERMINAL.textSizing) {
 					const plainWidth = visibleWidth(headingPlainText);
 					if (plainWidth > 0 && 2 * plainWidth <= width) {
 						const sizedHeading = encodeTextSizedHeading(headingPlainText, 2);
-						lines.push(renderedLine(this.#theme.heading(this.#theme.bold(this.#theme.underline(sizedHeading)))));
+						lines.push(renderedLine(headingColor(this.#theme.bold(this.#theme.underline(sizedHeading)))));
 						lines.push(renderedLine("")); // reserve the heading's second visual row
 						if (nextTokenType && nextTokenType !== "space") {
 							lines.push(renderedLine("")); // Add spacing after headings (unless space token follows)
@@ -2505,11 +2510,11 @@ export class Markdown implements Component {
 					}
 				}
 				if (headingLevel === 1) {
-					styledHeading = this.#theme.heading(this.#theme.bold(this.#theme.underline(headingText)));
+					styledHeading = headingColor(this.#theme.bold(this.#theme.underline(headingText)));
 				} else if (headingLevel === 2) {
-					styledHeading = this.#theme.heading(this.#theme.bold(headingText));
+					styledHeading = headingColor(this.#theme.bold(headingText));
 				} else {
-					styledHeading = this.#theme.heading(this.#theme.bold(headingPrefix + headingText));
+					styledHeading = headingColor(this.#theme.bold(headingPrefix + headingText));
 				}
 				lines.push(renderedLine(styledHeading));
 				if (nextTokenType && nextTokenType !== "space") {

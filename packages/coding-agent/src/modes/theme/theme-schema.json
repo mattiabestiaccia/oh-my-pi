@@ -33,7 +33,7 @@
 		},
 		"colors": {
 			"type": "object",
-			"description": "Theme color definitions (all required except thinkingMax)",
+			"description": "Theme color definitions (all required except thinkingMax and mdHeading1-6)",
 			"required": [
 				"accent",
 				"border",
@@ -194,6 +194,30 @@
 				"mdHeading": {
 					"$ref": "#/$defs/colorValue",
 					"description": "Markdown heading text"
+				},
+				"mdHeading1": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Markdown H1 heading text (optional; falls back to mdHeading)"
+				},
+				"mdHeading2": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Markdown H2 heading text (optional; falls back to mdHeading)"
+				},
+				"mdHeading3": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Markdown H3 heading text (optional; falls back to mdHeading)"
+				},
+				"mdHeading4": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Markdown H4 heading text (optional; falls back to mdHeading)"
+				},
+				"mdHeading5": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Markdown H5 heading text (optional; falls back to mdHeading)"
+				},
+				"mdHeading6": {
+					"$ref": "#/$defs/colorValue",
+					"description": "Markdown H6 heading text (optional; falls back to mdHeading)"
 				},
 				"mdLink": {
 					"$ref": "#/$defs/colorValue",

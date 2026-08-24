@@ -8,6 +8,7 @@ import type { EditorTheme, MarkdownTheme, SelectListTheme, SettingsListTheme, Sy
 import chalk from "@oh-my-pi/pi-utils/chalk";
 import { LRUCache } from "@oh-my-pi/pi-utils/lru";
 import { resolveMermaidAscii } from "./mermaid-cache";
+import type { ThemeColor } from "./schema";
 import type { SlashCommandIconName } from "./symbols";
 import { theme } from "./theme";
 import type { Theme } from "./theme-class";
@@ -168,6 +169,12 @@ export function getMarkdownTheme(): MarkdownTheme {
 		: undefined;
 	const markdownTheme: MarkdownTheme = {
 		heading: (text: string) => theme.fg("mdHeading", text),
+		headingByLevel: (level: number, text: string) => {
+			// Optional per-level tokens; themes that omit them keep `mdHeading`.
+			const clamped = Math.min(6, Math.max(1, Math.trunc(level)));
+			const token = `mdHeading${clamped}` as ThemeColor;
+			return theme.fg(theme.hasColor(token) ? token : "mdHeading", text);
+		},
 		link: (text: string) => theme.fg("mdLink", text),
 		linkUrl: (text: string) => theme.fg("mdLinkUrl", text),
 		code: (text: string) => theme.fg("mdCode", text),
