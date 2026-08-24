@@ -1115,10 +1115,10 @@ export class AssistantMessageComponent extends Container {
 							(c.type === "thinking" && resolveThinkingDisplay(c, this.proseOnlyThinking).visible),
 					);
 
-				// Thinking traces in subdued slate gray, italic; inline code keeps
-				// the same hue as the answer at 70% brightness.
+				// Thinking traces in thinkingText color, italic; inline code keeps
+				// the same hue as the answer at reduced brightness.
 				const md = new Markdown(thinkingText, 1, 0, getReasoningMarkdownTheme(), {
-					color: (text: string) => chalk.hex("#757d91")(text),
+					color: (text: string) => theme.fg("thinkingText", text),
 					italic: true,
 				});
 				md.transientRenderCache = this.#lastUpdateTransient;
