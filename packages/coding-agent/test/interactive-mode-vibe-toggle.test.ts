@@ -144,6 +144,9 @@ describe("InteractiveMode vibe mode toggle", () => {
 	});
 
 	it("preserves the parent Todo tool and restores the exact pre-vibe toolset on exit", async () => {
+		// Keep this test focused on InteractiveMode's own journal transition;
+		// worker teardown has a separate persistence path.
+		vi.spyOn(VibeSessionRegistry.global(), "killAll").mockResolvedValue(0);
 		expect(session.getAllToolNames().toSorted()).toEqual(["read", "todo"]);
 		expect(session.getActiveToolNames()).toEqual([]);
 
@@ -164,6 +167,12 @@ describe("InteractiveMode vibe mode toggle", () => {
 		expect(mode.vibeModeEnabled).toBe(false);
 		expect(session.getActiveToolNames()).toEqual([]);
 		expect(session.getAllToolNames().toSorted()).toEqual(["read", "todo"]);
+		expect(
+			session.sessionManager
+				.getEntries()
+				.filter(entry => entry.type === "mode_change")
+				.map(entry => entry.mode),
+		).toEqual(["vibe", "none"]);
 	});
 
 	it("cancels an in-flight model turn before removing Vibe tools", async () => {
