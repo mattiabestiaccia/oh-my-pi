@@ -213,6 +213,14 @@ export class Theme {
 		return hex || (this.isLight ? "#000000" : "#e5e5e7");
 	}
 	/**
+	 * Whether an optional foreground color token is defined by the active theme.
+	 * Optional tokens (`thinkingMax`, `mdHeading1`-`mdHeading6`) are absent from
+	 * themes that predate them, so callers fall back to their required sibling.
+	 */
+	hasColor(color: ThemeColor): boolean {
+		return Boolean(this.#fgColors[color]);
+	}
+	/**
 	 * Get the resolved CSS hex string for a background theme color.
 	 */
 	getBgHex(color: ThemeBg): string {

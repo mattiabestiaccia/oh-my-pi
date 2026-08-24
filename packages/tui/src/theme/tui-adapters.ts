@@ -13,6 +13,7 @@ import type { SymbolTheme } from "../symbols";
 import chalk from "@oh-my-pi/pi-utils/chalk";
 import { LRUCache } from "@oh-my-pi/pi-utils/lru";
 import { resolveMermaidAscii } from "./mermaid-cache";
+import type { ThemeColor } from "./schema";
 import type { SlashCommandIconName } from "./symbols";
 import { ensureThemeSync, theme } from "./theme";
 import type { Theme } from "./theme-class";
@@ -171,10 +172,17 @@ export function getSymbolTheme(): SymbolTheme {
 let cachedMarkdownTheme: MarkdownTheme | undefined;
 let cachedMarkdownThemeRef: Theme | undefined;
 let markdownMermaidRendering = true;
+let markdownCodeBlockFence = true;
 
 export function setMarkdownMermaidRendering(enabled: boolean): void {
 	if (markdownMermaidRendering === enabled) return;
 	markdownMermaidRendering = enabled;
+	cachedMarkdownTheme = undefined;
+}
+
+export function setMarkdownCodeBlockFence(enabled: boolean): void {
+	if (markdownCodeBlockFence === enabled) return;
+	markdownCodeBlockFence = enabled;
 	cachedMarkdownTheme = undefined;
 }
 
@@ -202,24 +210,16 @@ export function getMarkdownTheme(): MarkdownTheme {
 		: undefined;
 	const markdownTheme: MarkdownTheme = {
 		heading: (text: string) => theme.fg("mdHeading", text),
-		headingByLevel: (level: number, text: string) =>
-			theme.fg(
-				level <= 1
-					? "mdHeading"
-					: level === 2
-						? "success"
-						: level === 3
-							? "warning"
-							: level === 4
-								? "mdLink"
-								: level === 5
-									? "error"
-									: "syntaxNumber",
-				text,
-			),
+		headingByLevel: (level: number, text: string) => {
+			// Optional per-level tokens; themes that omit them keep `mdHeading`.
+			const clamped = Math.min(6, Math.max(1, Math.trunc(level)));
+			const token = `mdHeading${clamped}` as ThemeColor;
+			return theme.fg(theme.hasColor(token) ? token : "mdHeading", text);
+		},
 		link: (text: string) => theme.fg("mdLink", text),
 		linkUrl: (text: string) => theme.fg("mdLinkUrl", text),
 		code: (text: string) => theme.fg("mdCode", text),
+		showCodeBlockFence: markdownCodeBlockFence,
 		codeBlock: (text: string) => theme.fg("mdCodeBlock", text),
 		codeBlockBorder: (text: string) => theme.fg("mdCodeBlockBorder", text),
 		quote: (text: string) => theme.fg("mdQuote", text),
