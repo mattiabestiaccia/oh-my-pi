@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { lutimes, mkdtemp, readdir, readFile, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import {
 	CACHE_TTL_MS,
 	type PlaybackProcess,
@@ -841,10 +841,10 @@ describe("SpeechPlaybackQueue cache containment", () => {
 		await queue.sweepExpired();
 
 		const remaining = await readdir(sessionDir);
-		expect(remaining).not.toContain(oldWav.split("/").pop());
+		expect(remaining).not.toContain(basename(oldWav));
 		expect(remaining).not.toContain("crashed.part");
-		expect(remaining).toContain(freshWav.split("/").pop());
-		expect(remaining).toContain(activeWav.split("/").pop());
+		expect(remaining).toContain(basename(freshWav));
+		expect(remaining).toContain(basename(activeWav));
 		// lstat does not follow the link, so neither it nor its target is touched.
 		expect(remaining).toContain("linked.wav");
 		expect(await readFile(outside, "utf8")).toBe("target must survive");
