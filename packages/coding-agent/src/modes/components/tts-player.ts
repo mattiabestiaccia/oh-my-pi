@@ -132,7 +132,11 @@ export class TtsHudComponent implements Component {
 
 		const compact = width < COMPACT_MAX_WIDTH;
 		const cells = compact ? Math.max(4, Math.floor(BAR_CELLS / 2)) : BAR_CELLS;
-		const pieces = [status, this.#theme.fg("muted", bar(blockProgress(snapshot, block), cells)), this.#counters(snapshot)];
+		const pieces = [
+			status,
+			this.#theme.fg("muted", bar(blockProgress(snapshot, block), cells)),
+			this.#counters(snapshot),
+		];
 		pieces.push(this.#theme.fg("muted", `${snapshot.speed.toFixed(1)}×`));
 		// Autoplay on is the default, so only its absence is worth a word.
 		if (!snapshot.autoplay) pieces.push(this.#theme.fg("warning", "manuale"));
@@ -166,7 +170,9 @@ export class TtsHudComponent implements Component {
 	/** Second line: the text being spoken, or the elapsed/total readout. */
 	#detailLine(snapshot: SpeechPlaybackSnapshot, block: SpeechBlock | undefined): string {
 		if (!block) return "nessun blocco in coda — /tts per aprire i capitoli";
-		const total = block.durationSeconds ? ` ${formatClock(snapshot.elapsedMs)}/${formatClock(block.durationSeconds * 1000)}` : "";
+		const total = block.durationSeconds
+			? ` ${formatClock(snapshot.elapsedMs)}/${formatClock(block.durationSeconds * 1000)}`
+			: "";
 		return `${block.text.replace(/\s+/g, " ").trim()}${total}`;
 	}
 
@@ -405,7 +411,10 @@ export class TtsChaptersOverlay implements Component {
 		const end = Math.min(rows.length, start + inner);
 		const windowed: string[] = [];
 		const hidden = (count: number, where: string) =>
-			this.#theme.fg("dim", `  ${where === "sopra" ? "▴" : "▾"} ${count} ${count === 1 ? "riga" : "righe"} ${where}`);
+			this.#theme.fg(
+				"dim",
+				`  ${where === "sopra" ? "▴" : "▾"} ${count} ${count === 1 ? "riga" : "righe"} ${where}`,
+			);
 		windowed.push(start > 0 ? hidden(start, "sopra") : this.#theme.fg("dim", "  ─"));
 		for (let i = start; i < end; i += 1) windowed.push(rows[i] ?? "");
 		windowed.push(end < rows.length ? hidden(rows.length - end, "sotto") : this.#theme.fg("dim", "  ─"));

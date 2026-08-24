@@ -183,12 +183,13 @@ export class TtsCommandController {
 		const replies: Array<{ id: string; texts: string[] }> = [];
 		for (const [index, message] of (this.#ctx.session.messages ?? []).entries()) {
 			if (message.role !== "assistant") continue;
-			const text = typeof message.content === "string"
-				? message.content
-				: message.content
-						.filter((block): block is { type: "text"; text: string } => block.type === "text")
-						.map(block => block.text)
-						.join("\n");
+			const text =
+				typeof message.content === "string"
+					? message.content
+					: message.content
+							.filter((block): block is { type: "text"; text: string } => block.type === "text")
+							.map(block => block.text)
+							.join("\n");
 			if (!text.trim()) continue;
 			const speakable = new SpeakableStream();
 			const texts = [...speakable.push(`${text}\n`), ...speakable.flush()];

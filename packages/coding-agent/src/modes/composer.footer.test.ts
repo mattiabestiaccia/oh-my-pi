@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Container, Text, type RenderScheduler, type Terminal } from "@oh-my-pi/pi-tui";
+import { Container, type RenderScheduler, type Terminal, Text } from "@oh-my-pi/pi-tui";
 import { Composer } from "./composer";
 
 /** Byte-sink terminal that keeps what was painted, so a test can assert on the frame. */
