@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { Container } from "@oh-my-pi/pi-tui";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Container } from "@oh-my-pi/pi-tui";
 import { KeybindingsManager } from "../../config/keybindings";
 import { Settings } from "../../config/settings";
 import { vocalizer } from "../../tts/vocalizer";
@@ -25,10 +25,11 @@ function makeContext(options: { speechEnabled?: boolean; cwd: string; messages?:
 	const renders = { count: 0 };
 	const keyHandlers = new Map<string, () => void>();
 	const ttsContainer = new Container();
-	const overlay: { built: number; component: { render(width: number): readonly string[]; dispose?(): void } | null } = {
-		built: 0,
-		component: null,
-	};
+	const overlay: { built: number; component: { render(width: number): readonly string[]; dispose?(): void } | null } =
+		{
+			built: 0,
+			component: null,
+		};
 	const warnings: string[] = [];
 	const ctx = {
 		ui: {
@@ -71,7 +72,15 @@ function makeContext(options: { speechEnabled?: boolean; cwd: string; messages?:
 		},
 		showWarning: (message: string) => warnings.push(message),
 	};
-	return { ctx: ctx as unknown as InteractiveModeContext, renders, keyHandlers, ttsContainer, raw: ctx, overlay, warnings };
+	return {
+		ctx: ctx as unknown as InteractiveModeContext,
+		renders,
+		keyHandlers,
+		ttsContainer,
+		raw: ctx,
+		overlay,
+		warnings,
+	};
 }
 
 async function makeController(options: { speechEnabled?: boolean; messages?: unknown[]; overlayFails?: boolean } = {}) {
@@ -287,7 +296,7 @@ describe("TtsCommandController", () => {
 		expect(newest?.blocks.length).toBe(1);
 		expect(newest?.blocks[0]?.text).toContain("Una risposta successiva");
 		const older = snapshot?.responses[1];
-		expect((older?.blocks.length ?? 0)).toBeGreaterThanOrEqual(2);
+		expect(older?.blocks.length ?? 0).toBeGreaterThanOrEqual(2);
 		await controller.dispose();
 	});
 

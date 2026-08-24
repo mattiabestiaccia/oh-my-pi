@@ -516,7 +516,8 @@ export class SpeechPlaybackQueue {
 		// Only a block that is actually running has an elapsed time; otherwise a
 		// stale startedAt made the HUD count past the block's own duration.
 		if (active?.startedAt !== undefined && (this.#state === "playing" || this.#state === "paused")) {
-			const pausedMs = (active.pausedAt !== undefined ? Date.now() - active.pausedAt : 0) + (active.pausedTotalMs ?? 0);
+			const pausedMs =
+				(active.pausedAt !== undefined ? Date.now() - active.pausedAt : 0) + (active.pausedTotalMs ?? 0);
 			elapsedMs = Math.max(0, Date.now() - active.startedAt - pausedMs);
 		}
 		return {
@@ -549,7 +550,11 @@ export class SpeechPlaybackQueue {
 	#projectedState(block: SpeechBlock): SpeechBlockState {
 		if (block.id !== this.#activeBlockId) {
 			// Never audible unless it is the active one.
-			return block.state === "playing" || block.state === "paused" ? (block.wavPath ? "ready" : "queued") : block.state;
+			return block.state === "playing" || block.state === "paused"
+				? block.wavPath
+					? "ready"
+					: "queued"
+				: block.state;
 		}
 		if (this.#state === "playing") return "playing";
 		if (this.#state === "paused") return "paused";
