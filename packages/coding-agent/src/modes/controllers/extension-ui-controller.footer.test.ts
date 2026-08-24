@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Container, type Component } from "@oh-my-pi/pi-tui";
+import { type Component, Container } from "@oh-my-pi/pi-tui";
 import { ExtensionUiController } from "./extension-ui-controller";
 
 function textComponent(text: string, onDispose?: () => void): Component {
