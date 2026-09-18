@@ -3,10 +3,10 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Container } from "@oh-my-pi/pi-tui";
-import { KeybindingsManager } from "../../config/keybindings";
+import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
 import { Settings } from "../../config/settings";
 import { vocalizer } from "../../tts/vocalizer";
-import { initTheme, theme } from "../theme/theme";
+import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
 import type { InteractiveModeContext } from "../types";
 import { TtsCommandController } from "./tts-command-controller";
 

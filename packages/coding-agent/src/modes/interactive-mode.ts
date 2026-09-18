@@ -235,12 +235,7 @@ import { TanCommandController } from "./controllers/tan-command-controller";
 import { TodoCommandController } from "./controllers/todo-command-controller";
 import { TtsCommandController } from "./controllers/tts-command-controller";
 import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@oh-my-pi/pi-tui/prompt/image-references";
-import {
-	describeLoopCondition,
-	evaluateLoopCondition,
-	type LoopConditionConfig,
-	type LoopConditionVerdict,
-} from "./loop-condition";
+import { describeLoopCondition, evaluateLoopCondition, type LoopConditionVerdict } from "./loop-condition";
 import {
 	consumeLoopLimitIteration,
 	createLoopLimitRuntime,

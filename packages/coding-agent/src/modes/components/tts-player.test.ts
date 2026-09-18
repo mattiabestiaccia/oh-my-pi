@@ -3,9 +3,9 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { visibleWidth } from "@oh-my-pi/pi-tui";
-import { KeybindingsManager } from "../../config/keybindings";
+import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
 import { type PlaybackProcess, SpeechPlaybackQueue, type SpeechPlaybackSnapshot } from "../../tts/playback-queue";
-import { initTheme, theme } from "../theme/theme";
+import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
 import { formatClock, TtsChaptersOverlay, TtsHudComponent } from "./tts-player";
 
 /** The widths the plan pins the HUD's three shapes to. */

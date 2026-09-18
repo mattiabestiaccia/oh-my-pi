@@ -11,10 +11,11 @@
  */
 import type { Component } from "@oh-my-pi/pi-tui";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@oh-my-pi/pi-tui";
-import type { KeybindingsManager } from "../../config/keybindings";
+import type { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
 import type { SpeechBlock, SpeechPlaybackQueue, SpeechPlaybackSnapshot } from "../../tts/playback-queue";
-import type { Theme, ThemeColor } from "../theme/theme";
-import { bottomBorder, divider, fit, topBorder } from "./overlay-box";
+import { bottomBorder, divider, topBorder } from "@oh-my-pi/pi-tui/chrome";
+import { fitLayoutLine } from "@oh-my-pi/pi-tui/components/layout/geometry";
+import type { Theme, ThemeColor } from "@oh-my-pi/pi-tui/theme";
 
 /** Below this width the HUD collapses to a single line. */
 const ONE_LINE_MAX_WIDTH = 40;
@@ -294,7 +295,7 @@ export class TtsChaptersOverlay implements Component {
 	#framedRow(content: string, inner: number): string {
 		const box = this.#theme.boxRound;
 		const edge = this.#theme.fg("border", box.vertical);
-		return `${edge} ${fit(this.#clip(content, inner), inner)} ${edge}`;
+		return `${edge} ${fitLayoutLine(this.#clip(content, inner), inner)} ${edge}`;
 	}
 
 	/**

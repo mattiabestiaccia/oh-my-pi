@@ -18,7 +18,7 @@ import {
 	TtsChaptersOverlay,
 	TtsHudComponent,
 } from "../components/tts-player";
-import { theme } from "../theme/theme";
+import { theme } from "@oh-my-pi/pi-tui/theme";
 import type { InteractiveModeContext } from "../types";
 
 /**
